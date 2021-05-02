@@ -1,0 +1,1611 @@
+<!DOCTYPE html>
+  <html>
+    <head>
+      <title>Void of Chaos</title>
+    </head>
+    <style>
+        body{
+          background-color:black;
+          color:white;
+          font-family: 'Courier New', monospace;
+        }
+        .button {
+          border: none;
+          color: white;
+          padding: 16px 32px;
+          text-align: center;
+          text-decoration: none;
+          display: inline-block;
+          font-size: 16px;
+          margin: 4px 2px;
+          transition-duration: 0.4s;
+          cursor: pointer;
+        }
+
+        .button1 {
+          background-color: black; 
+          color: white; 
+          border: 2px solid #ffd000;
+        }
+
+        .button1:hover {
+          background-color: #ffd000;
+          color: white;
+        }
+
+        .button2 {
+          background-color: black; 
+          color: white; 
+          border: 2px solid #4CAF50;
+        }
+
+        .button2:hover {
+          background-color: #4CAF50;
+          color: white;
+        }
+
+        .button3 {
+          background-color: black; 
+          color: white; 
+          border: 2px solid #008CBA;
+        }
+
+        .button3:hover {
+          background-color: #008CBA;
+          color: white;
+        }
+    </style>
+    <body>
+      <button class="button button1" onclick="alert('Fly to new planets to refuel while avoiding asteroids and explosive planetary collisions. Increase your score by orbiting new worlds - and, of course, staying in one piece with some fuel left in your tank \(for life support\). To activate your main drive and accelerate in the direction your ship is pointing, press W. To turn clockwise or counterclockwise, press D or A respectively. Remember, you\'re in space - you won\'t stop spinning unless you begin turning in the other direction. Press S to activate a shield which will protect you from asteroids and explosions, but be careful - it requires quite a lot of power \(fuel\) to operate such a strong force field. If you find yourself low on HP, you can spend fuel to heal by pressing H. You can fire a projectiles from a railgun to destroy asteroids by pressing (or holding) I. Using the railgun also requires power, but not as much as the main drive. You can also pause/unpause the game by pressing K, and speed up or slow down the simulation by pressing L or J respectively.');">Instructions</button>
+      <button class="button button2" onclick="gameMode=0;reset();">VOID OF CHAOS</button>
+      <button class="button button3" onclick="gameMode=2;reset();">Satisfying Mode</button>
+
+    	<script> 
+        alert('Welcome to Void of Chaos! Fly to new planets to refuel while avoiding asteroids and explosive planetary collisions. Increase your score by orbiting new worlds - and, of course, staying in one piece with some fuel left in your tank \(for life support\). To activate your main drive and accelerate in the direction your ship is pointing, press W. To turn clockwise or counterclockwise, press D or A respectively. Remember, you\'re in space - you won\'t stop spinning unless you begin turning in the other direction. Press S to activate a shield which will protect you from asteroids and explosions, but be careful - it requires quite a lot of power \(fuel\) to operate such a strong force field. If you find yourself low on HP, you can spend fuel to heal by pressing H. You can fire a projectiles from a railgun to destroy asteroids by pressing (or holding) I. Using the railgun also requires power, but not as much as the main drive. You can also pause/unpause the game by pressing K, and speed up or slow down the simulation by pressing L or J respectively.')  
+
+        let shipNameExamples = ["The Rocinante (LEGITIMATE SALVAGE)", "The Razorback", "The Silverbird", "Slave I", "The Millennium Falcon", "Starship SN28", "The USS Enterprise", "Columbia", "Eagle", "The Zoomy Triangle", "The Asteroid Magnet", "The Vermicious Knid", "Delta V", "The Indestructible II", "They Told Me To Call It This", "If Found, Please Return To Earth", "The V.H.S. Betamax", "The USS Winds of Uranus", "The BX-48A Constellation-class Cruiser", "The Pheonix", "The Donnager", "The Icarus", "The Needle", "The Executor", "The Death Star Destroyer - you know, the one from Star Trek?", "The Anubis", "The Angel of Death", "Goose", "Dragon"]
+        let shipName = prompt("Name your ship (press N to rename at any time): ", shipNameExamples[Math.floor(Math.random()*shipNameExamples.length)]);
+
+        let running = true                //is the game running or paused?
+        let G = 6.6743e-11                //gravitational constant (used for physics calculations)
+        let t = 15                        //timestep (seconds, used for physics calculations)
+        let tMod = 1                      //modifies timestep to speed up/slow down simulation
+        let timeElapsed = 0               //total time elapsed (sec)
+        
+        let ship = [0, 0, 0, 0, 100000, -1*Math.PI, 0]      //[x, y, Vx, Vy, m, theta (rotational orientation), angular velocity] of ship
+
+        let Planet1 = [0, 0, 0, 0, 6e24, 15, "#002385", "#4287f5", 0, 0, 0, 0]        //[x, y, Vx, Vy, m, r, outer color, inner color, orbital r, max fuel, remaining fuel, damage] of planet 1
+        let Planet2 = [0, 0, 0, 0, 0, 0, "", "", 0, 0, 0, 0]       //[x, y, Vx, Vy, m, r, outer color, inner color, orbital r, max fuel, remaining fuel, damage] of planet 2
+        let Planet3 = [0, 0, 0, 0, 0, 0, "", "", 0, 0, 0, 0]       //[x, y, Vx, Vy, m, r, outer color, inner color, orbital r, max fuel, remaining fuel, damage] of planet 3
+        let Planet4 = [0, 0, 0, 0, 0, 0, "", "", 0, 0, 0, 0]       //[x, y, Vx, Vy, m, r, outer color, inner color, orbital r, max fuel, remaining fuel, damage] of planet 4
+        let Planet5 = [0, 0, 0, 0, 0, 0, "", "", 0, 0, 0, 0]       //[x, y, Vx, Vy, m, r, outer color, inner color, orbital r, max fuel, remaining fuel, damage] of planet 5
+        let Planet6 = [0, 0, 0, 0, 0, 0, "", "", 0, 0, 0, 0]       //[x, y, Vx, Vy, m, r, outer color, inner color, orbital r, max fuel, remaining fuel, damage] of planet 6
+
+        let updateP1 = [0, 0, 0, 0]       //change in [x, y, Vx, Vy] of planet 3 over last timestep
+        let updateP2 = [0, 0, 0, 0]       //change in [x, y, Vx, Vy] of planet 3 over last timestep
+        let updateP3 = [0, 0, 0, 0]       //change in [x, y, Vx, Vy] of planet 3 over last timestep
+        let updateP4 = [0, 0, 0, 0]       //change in [x, y, Vx, Vy] of planet 3 over last timestep
+        let updateP5 = [0, 0, 0, 0]       //change in [x, y, Vx, Vy] of planet 3 over last timestep
+        let updateP6 = [0, 0, 0, 0]       //change in [x, y, Vx, Vy] of planet 3 over last timestep
+
+        let newPlanets = [Planet3, Planet4, Planet5, Planet6] //all planets that are not yet in the game
+        let planets = [Planet1, Planet2]    //all planets in the game
+        let updates = [updateP1, updateP2, updateP3, updateP4, updateP5, updateP6]  //updates in planets[] over last timestep
+        let asteroids = []                  //array of all asteroids
+        let explosions = []                 //array of all explosions
+        let projectiles = []                 //array of all projectiles
+
+        let thrusterOn = false            //is the thruster on? (Triggered by W key)
+        let pancakeMode = false           //is the thruster on high power?
+        let forceFieldActivated = false   //is the force field activated? (Triggered by S key)
+        let xThruster = 0                 //x-component of thrust vector
+        let yThruster = 0                 //y-component of thrust vector
+        let maxFuel = 350000             //maximum fuel capacity
+        let fuel = maxFuel*.4                //current fuel level
+        let thrusterPower = -12000         //power of thruster
+
+        let turningLeft = false           //is the ship turning to the left? (Triggered by A key)
+        let turningRight = false          //is the ship turnign to the right? (Triggered by D key)
+
+        let inOrbit = false
+        let planetsOrbited = 0
+        let score = 0
+        let highScore = 0
+        let distNearestPlanet
+        let relVelNearestPlanet
+
+        let alreadyExploded = false
+        let shipJustDestroyedPlanet = false
+        let justDied = 0
+        let deathMessage = ""
+
+        let HPmax = 1000
+        let HP = HPmax
+        let healing = false
+        let ranOutOfFuel = false
+        let orbitCoolDown = 0
+        let dangerouslyClose = false
+        let aboutToHitPlanet = false
+
+        let gameMode = 0 //0 = void of chaos, 1 = tutorial mode, 2 = satisfying mode
+        let scoreMod = (planetsOrbited + 1) * (planetsOrbited + 1)
+
+        //sets up canvas
+        let canvas = document.createElement("canvas");
+        document.body.appendChild(canvas);
+        canvas.height = 800;
+        canvas.width = 1420;
+        canvas.style.backgroundColor = "#000000";
+        canvas.className = "canvas";
+        let ctx = canvas.getContext("2d");
+        ctx.setLineDash([]);
+
+        //returns distance between two points in meters
+        function distance(x1, y1, x2, y2){
+          return (Math.sqrt(((x2-x1)*(x2-x1)) + ((y2-y1)*(y2-y1))))*500000;
+        }
+
+        //returns angle between two points in radians
+        function angle(x1, y1, x2, y2){
+          return Math.abs(Math.atan((y1-y2)/(x1-x2)));
+        }
+
+        //returns position of center of mass of two point masses
+        function centerOfmass(x1, y1, m1, x2, y2, m2){
+          posCM = [0, 0]
+          posCM[0] = (x1*m1 + x2*m2)/(m1+m2)
+          posCM[1] = (y1*m1 + y2*m2)/(m1+m2)
+          return posCM;
+        }
+
+        //thruster on?
+    	  document.addEventListener('keydown', (e) => {
+		      if (e.code === "KeyW") {
+		        thrusterOn = true
+            forceFieldActivated = false
+		    }
+    		});
+    		document.addEventListener('keyup', (e) => {
+  		    if (e.code === "KeyW") {
+  		      thrusterOn = false
+  		    }
+    		});
+
+        //thruster on high power?
+        document.addEventListener('keydown', (e) => {
+          if (e.code === "KeyO") {
+            if(thrusterOn){
+              pancakeMode = true
+            }
+        }
+        });
+        document.addEventListener('keyup', (e) => {
+          if (e.code === "KeyO") {
+            pancakeMode = false
+          }
+        });
+
+        //force field activated?
+        document.addEventListener('keydown', (e) => {
+          if (e.code === "KeyS") {
+            forceFieldActivated = true
+            thrusterOn = false
+          }
+        });
+        document.addEventListener('keyup', (e) => {
+          if (e.code === "KeyS") {
+            forceFieldActivated = false
+          }
+        });
+
+    		//turning left?
+    		document.addEventListener('keydown', (e) => {
+  		    if (e.code === "KeyA") {
+  		      turningLeft = true
+  		    }
+    		});
+    		document.addEventListener('keyup', (e) => {
+  		    if (e.code === "KeyA") {
+  		      turningLeft = false
+  		    }
+    		});
+
+    		//turning right?
+    		document.addEventListener('keydown', (e) => {
+  		    if (e.code === "KeyD") {
+  		      turningRight = true
+  		    }
+    		});
+    		document.addEventListener('keyup', (e) => {
+  		    if (e.code === "KeyD") {
+  		      turningRight = false
+  		    }
+    		});
+
+        //healing?
+        document.addEventListener('keydown', (e) => {
+          if (e.code === "KeyH") {
+            healing = true
+          }
+        });
+        document.addEventListener('keyup', (e) => {
+          if (e.code === "KeyH") {
+            healing = false
+          }
+        });
+
+        //fire Railgun
+        document.addEventListener('keydown', (e) => {
+          if (e.code === "KeyI") {
+            if(fuel > 0){
+              fireRailgun();
+            }
+          }
+        });
+
+    		//Resets level when "r" is pressed
+    		document.addEventListener('keydown', (e) => {
+  		    if (e.code === "KeyR") {
+  		      reset();
+  		    }
+    		});
+
+        //Pause/play simulation
+        document.addEventListener('keydown', (e) => {
+            if (e.code === "KeyK") {
+                running = !running;
+            }
+        });
+
+        //Slow down simulation
+        document.addEventListener('keydown', (e) => {
+          if (e.code === "KeyJ") {
+            if(t>5){
+              t = t/2;
+              tMod = tMod/2;
+            }
+          }
+        });
+
+        //Speed up simulation
+        document.addEventListener('keydown', (e) => {
+          if (e.code === "KeyL") {
+            if(t<100){
+              t = t*2;
+              tMod = tMod*2;
+            }
+          }
+        });
+
+        document.addEventListener('keydown', (e) => {
+          if (e.code === "KeyN") {
+            shipName = prompt("Rename your ship: ", shipNameExamples[Math.floor(Math.random()*shipNameExamples.length)]);
+          }
+        });
+
+    		//Determines thruster component forces and reduces fuel when thruster or force field is activated
+    		function changeFuel(){
+    			if(thrusterOn&&(fuel>0)){
+            if(pancakeMode){
+              xThruster = thrusterPower*Math.cos(ship[5])*2.5
+              yThruster = thrusterPower*Math.sin(ship[5])*2.5
+              fuel -= t*3.5
+            }else{
+              xThruster = thrusterPower*Math.cos(ship[5])
+              yThruster = thrusterPower*Math.sin(ship[5])
+              fuel -= t
+            }
+    			}else{
+    				xThruster = 0
+    				yThruster = 0
+    			}
+          if(forceFieldActivated&&(fuel>0)){
+            fuel -= 2*t
+          }
+          if(turningLeft&&(fuel>0)){
+            fuel -= t/6
+          }
+          if(turningRight&&(fuel>0)){
+            fuel -= t/6
+          }
+          if(healing&&(fuel>0)&&(HP<HPmax)){
+            fuel -= 8*t
+            HP += t/25
+          }
+          if(HP>HPmax){
+            HP = HPmax
+          }
+          if(fuel<=0 && !ranOutOfFuel){
+            alert("The crushing force that had pressed you into your gel-filled seat as " + shipName + " accelerated suddenly evaporates, and you gently float forward an inch, weightless, before the restraints of your seat prevent you from drifting further. You try to rengage the main drive, but instead of ramping up to full power, the hum of the reactor slowly fades away. You had been so focused on dodging deadly asteroids and whipping around planets that you hadn't noticed the blinking red light in the corner of your vision indicating LOW FUEL. A sense of helplessness fills you as " + shipName + " tumbles aimlessly through the void.")
+            fuel = 0
+            ranOutOfFuel = true
+            thrusterOn = false
+            pancakeMode = false
+            forceFieldActivated = false
+          }
+          if(fuel == 0){
+            HP -= t/350 + HP/3000
+
+            if(HP <= 0){
+              HP = 0
+              alert("Hours pass as " + shipName + " drifts powerless through the darkness, the last drops of Helium-3 burned up long ago by the hungry fusion drive. The lights flicker out as the auxiliary power bank spends it's last remaining electricity vaporizing micrometeoroids with short range lasers, and occasional echoing pops and snaps now sound out when the rocks collide with " + shipName + "'s thin metal hull at several kilometers per second. A loud crack makes the hull shudder, rapidly followed by a distinct hissing sound that fills the cockpit. Your ears pop as the air pressure noticably drops. You desperately unclip yourself from the pilot's seat and shove yourself across the cabin, searching for the leak - but by the time you slap an emergency seal on the ruptured hull it's too late. You gasp at the thin air still remaining inside the metal bubble that is " + shipName + ", but you rapidly begin to feel lightheaded. Your vision grows dark, and you exhale your last breath. \n\nSCORE: " + Math.round(score))
+              reset();
+            }
+          }
+          if(fuel>0){
+            ranOutOfFuel = false
+          }
+          if(fuel>maxFuel){
+            fuel = maxFuel
+          }
+    		}
+        
+        //Changes angle of ship and angular velocity of ship
+        function spinShip(){
+          if(turningLeft && fuel>0){
+            ship[6] -= (.0000001)*t
+          }
+          if(turningRight && fuel>0){
+            ship[6] += (.0000001)*t
+          }
+          ship[5] += ship[6]*t
+        }
+
+        //Displays remaining fuel
+        function fuelBar(){
+            ctx.font = "15px Courier New";
+            ctx.fillStyle = "#ffffff"
+            ctx.setLineDash([]);
+            ctx.fillText("FUEL", 30, 50);
+            ctx.beginPath();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = "white";
+            ctx.strokeRect(30, 60, 60, 20);
+
+            if(inOrbit){
+              ctx.fillStyle = "#4CAF50";
+            }else if((fuel/maxFuel)>.2){
+              ctx.fillStyle = "white";
+            }else if((fuel/maxFuel)<=.2){
+              ctx.fillStyle = "red";
+            }
+
+            ctx.fillRect(33, 63, ((fuel/maxFuel)*54), 14);
+            ctx.fillText(Math.ceil((fuel/maxFuel)*100) + "%", 100, 75);
+        }
+
+        //Displays remaining hp
+        function HPbar(){
+            ctx.font = "15px Courier New";
+            ctx.fillStyle = "#ffffff"
+            ctx.setLineDash([]);
+            ctx.fillText("HP", 30, 110);
+            ctx.beginPath();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = "white";
+            ctx.strokeRect(30, 120, 60, 20);
+
+            if(healing && HP < HPmax){
+              ctx.fillStyle = "#4CAF50"
+            }else if((HP/HPmax)>.2){
+              ctx.fillStyle = "white";
+            }else if((HP/HPmax)<=.2){
+              ctx.fillStyle = "red";
+            }
+
+            ctx.fillRect(33, 123, ((HP/HPmax)*54), 14);
+            ctx.fillText(Math.ceil((HP/HPmax)*1000), 100, 135);
+        }
+
+        function readOuts(){
+          if(justDied == 0){
+            distNearestPlanet = distance(planets[0][0],planets[0][1],ship[0],ship[1])/1000
+            let relativeVx = planets[0][2] - ship[2]
+            let relativeVy = planets[0][3] - ship[3]
+            relVelNearestPlanet = Math.sqrt(relativeVy*relativeVy + relativeVx*relativeVx)
+            for(let i = 0; i < planets.length; i++){
+              if(distance(planets[i][0],planets[i][1],ship[0],ship[1])/1000 < distNearestPlanet){
+                distNearestPlanet = distance(planets[i][0],planets[i][1],ship[0],ship[1])/1000
+                relVelNearestPlanet
+                relativeVx = planets[i][2] - ship[2]
+                relativeVy = planets[i][3] - ship[3]
+                relVelNearestPlanet = Math.sqrt(relativeVy*relativeVy + relativeVx*relativeVx)
+              }
+            }
+
+            ctx.font = "15px Courier New";
+            ctx.fillStyle = "#ffffff"
+            ctx.strokeStyle = "#ffffff"
+            ctx.fillText("x" + tMod + " SPEED", 1190, 40);
+            ctx.fillText("Time Elapsed (hrs:min):", 60, 760);
+            if(((timeElapsed%3600)/60>>0) > 9){
+              ctx.fillText((timeElapsed/3600>>0) + ":" + ((timeElapsed%3600)/60>>0), 278, 760);
+            }else{
+              ctx.fillText((timeElapsed/3600>>0) + ":0" + ((timeElapsed%3600)/60>>0), 278, 760);
+            }
+            ctx.fillText("Planets Orbited:", 60, 730);
+            ctx.fillText(planetsOrbited, 215, 730);
+            ctx.fillText("Distance from closest planet:", 983, 760);
+            if(dangerouslyClose){
+              ctx.fillStyle = "#ffcc00"
+            }
+            if(aboutToHitPlanet){
+              ctx.fillStyle = "#e80000"
+            }
+            ctx.fillText(Math.round(distNearestPlanet) + " km", 1255, 760);
+            ctx.fillStyle = "#ffffff"
+            ctx.fillText("Speed relative to closest planet:", 946, 730);
+            ctx.fillText(Math.round(relVelNearestPlanet) + " m/s", 1255, 730);
+          }
+
+          ctx.font = "25px Arial";
+          ctx.fillStyle = "#ffffff"
+          ctx.lineWidth = 1;
+          ctx.strokeText("SCORE:", 600, 50);
+          ctx.font = "30px Courier New";
+          ctx.fillText(Math.round(score), 710, 50);
+
+          ctx.font = "15px Courier New";
+          ctx.lineWidth = 1;
+          ctx.fillText("HIGHSCORE:", 615, 80);
+          if(score > highScore){
+            highScore = score
+            ctx.fillStyle = "#4CAF50"
+          }else{
+            ctx.fillStyle = "#ffffff"
+          }
+          ctx.font = "20px Courier New";
+          ctx.fillText(Math.round(highScore), 715, 80);
+        }
+
+        //Loops through all objects and calculates the net gravitational force acting on them and their resultant movement over the timestep
+        function GRAVITY(x, y, Vx, Vy, m, xThruster, yThruster){
+          returnArray = [0, 0, 0, 0] //array that will be returned with change in [x, y, Vx, Vy] after timestep
+
+          //net component forces acting on object
+          let Fx = 0
+          let Fy = 0
+
+          //loops through all planets and calculates component forces of gravity from each
+          for(let i = 0; i < planets.length; i++){
+            //makes sure planet is not checking itself
+            if((Math.abs(planets[i][0] - x) < planets[i][5]) && (Math.abs(planets[i][1] - y) < planets[i][5]) && (planets[i][4] == m)){
+              Fx += 0
+              Fy += 0
+            }else{
+              //calculates force of gravity from planet
+              let FgPlanet = ((G*m*planets[i][4])/(distance(x,y,planets[i][0],planets[i][1])*distance(x,y,planets[i][0],planets[i][1])))
+
+              if(alreadyExploded && (m > 1e23) && distance(x,y,planets[i][0],planets[i][1]) <= 500000*40){
+                FgPlanet = FgPlanet*10
+              }
+
+              //determines whether the planet is in the positive x/y direction
+              let xDirPlanet = 1
+              let yDirPlanet = 1
+              if(x>=planets[i][0]){
+                xDirPlanet = -1
+              }
+              if(y>=planets[i][1]){
+                yDirPlanet = -1
+              }
+
+              //calculates component forces and adds to net component forces
+              Fx += xDirPlanet*(FgPlanet*Math.cos(angle(x,y,planets[i][0],planets[i][1]))) + xThruster
+              Fy += yDirPlanet*(FgPlanet*Math.sin(angle(x,y,planets[i][0],planets[i][1]))) + yThruster
+            }
+          }
+
+          // //loops through all asteroids and calculates component forces of gravity from each
+          // if(m<1e23){
+          //   for(let i = 0; i < asteroids.length; i++){
+          //     //makes sure object is not checking itself
+          //     if((Math.abs(asteroids[i][0] - x) < asteroids[i][5]) && (Math.abs(asteroids[i][1] - y) < asteroids[i][5]) && (asteroids[i][4] == m)){
+          //       Fx += 0
+          //       Fy += 0
+          //     }else{
+          //       //calculates force of gravity from planet
+          //       let FgAsteroid
+          //       if((distance(x,y,asteroids[i][0],asteroids[i][1]))<=2000000){
+          //         FgAsteroid = ((G*m*asteroids[i][4])/(distance(x,y,asteroids[i][0],asteroids[i][1])*distance(x,y,asteroids[i][0],asteroids[i][1]))) * Math.pow((distance(x,y,asteroids[i][0],asteroids[i][1])/2000000), 3)
+          //       }else{
+          //         FgAsteroid = ((G*m*asteroids[i][4])/(distance(x,y,asteroids[i][0],asteroids[i][1])*distance(x,y,asteroids[i][0],asteroids[i][1])))
+          //       }
+
+          //       //determines whether the planet is in the positive x/y direction
+          //       let xDirAsteroid = 1
+          //       let yDirAsteroid = 1
+          //       if(x>=asteroids[i][0]){
+          //         xDirAsteroid = -1
+          //       }
+          //       if(y>=asteroids[i][1]){
+          //         yDirAsteroid = -1
+          //       }
+
+          //       //calculates component forces and adds to net component forces
+          //       Fx += xDirAsteroid*(FgAsteroid*Math.cos(angle(x,y,asteroids[i][0],asteroids[i][1]))) + xThruster
+          //       Fy += yDirAsteroid*(FgAsteroid*Math.sin(angle(x,y,asteroids[i][0],asteroids[i][1]))) + yThruster
+          //     }
+          //   }
+          // }
+
+          //determines acceleration of object based on component forces
+          let Ax = Fx/m
+          let Ay = Fy/m
+
+          //calculates change in position
+          returnArray[0] = (Vx*t + .5*Ax*(t*t))/500000
+          returnArray[1] = (Vy*t + .5*Ay*(t*t))/500000
+
+          //calculates change in velocity
+          returnArray[2] = (Ax*t)
+          returnArray[3] = (Ay*t)
+          
+          return returnArray;
+        }
+
+        //takes position of asteroid on impact, velocity of planet on impact, and relative kinetic energy of asteroid to create a new explosion
+        function asteroidImpact(x, y, Vx, Vy, KEasteroid){
+          let newExplosion = [[0, 0, 0, 0, 0, 0, 0, 0]]    //[x, y, Vx, Vy, max radius, current radius, hue (of HSL color), lightness (of HSL color)]
+
+          newExplosion[0][0] = x
+          newExplosion[0][1] = y
+          newExplosion[0][2] = Vx
+          newExplosion[0][3] = Vy
+          newExplosion[0][4] = Math.cbrt((4*KEasteroid)/(3*Math.PI))*1e-8;
+          if(newExplosion[0][4]>=120){
+            newExplosion[0][5] = 15
+          }
+          newExplosion[0][6] = 60
+          // if(justDied > 0 && KEasteroid == 2e30){
+          //   newExplosion[0][6] = 180
+          // }
+          newExplosion[0][7] = 100
+
+          explosions = explosions.concat(newExplosion);
+        }
+
+        //generates cloud of asteroids when planets collide
+        function planetaryCollision(x1, y1, x2, y2, Vx1, Vy1, Vx2, Vy2, m1, m2){
+          let totalAsteroidMass1 = 0
+          let totalAsteroidMass2 = 0
+
+          while(totalAsteroidMass1 <= (m1/8)){
+            let newAsteroid1 = [[0, 0, 0, 0, 0, 0]] //[x, y, Vx, Vy, m, r] of new asteroid
+            
+            newAsteroid1[0][0] = x1 + (newAsteroid1[0][2] * (Math.random()*500 + 100))/500000
+            newAsteroid1[0][1] = y1 + (newAsteroid1[0][3] * (Math.random()*500 + 100))/500000
+
+            newAsteroid1[0][4] = (4*Math.pow((Math.random() - .5), 3) + .5) * (Math.pow(Math.random(), 3)) * (Math.random() * 3) * 5e22;
+            newAsteroid1[0][5] = Math.cbrt((4*newAsteroid1[0][4])/(3*Math.PI))*1e-7;
+
+            let direction1 = Math.random()*(Math.PI*2)
+            let velocity1 = Math.random()*1500*Math.log10(1e24/newAsteroid1[0][4]) + 500
+
+            newAsteroid1[0][2] = velocity1*Math.cos(direction1) + Vx1/3
+            newAsteroid1[0][3] = velocity1*Math.sin(direction1) + Vy1/3
+
+            totalAsteroidMass1 += newAsteroid1[0][4]
+            asteroids = asteroids.concat(newAsteroid1);
+          }
+          while(totalAsteroidMass2 <= (m2/8)){
+            let newAsteroid2 = [[0, 0, 0, 0, 0, 0]] //[x, y, Vx, Vy, m, r] of new asteroid
+            
+            newAsteroid2[0][0] = x2 + (newAsteroid2[0][2] * (Math.random()*500 + 100))/500000
+            newAsteroid2[0][1] = y2 + (newAsteroid2[0][3] * (Math.random()*500 + 100))/500000
+
+            newAsteroid2[0][4] = (4*Math.pow((Math.random() - .5), 3) + .5) * (Math.pow(Math.random(), 3)) * (Math.random() * 3) * 5e22;
+            newAsteroid2[0][5] = Math.cbrt((4*newAsteroid2[0][4])/(3*Math.PI))*1e-7;
+
+            let direction2 = Math.random()*(Math.PI*2)
+            let velocity2 = Math.random()*1500*Math.log10(1e24/newAsteroid2[0][4]) + 500
+
+            newAsteroid2[0][2] = velocity2*Math.cos(direction2) + Vx2/3
+            newAsteroid2[0][3] = velocity2*Math.sin(direction2) + Vy2/3
+
+            totalAsteroidMass2 += newAsteroid2[0][4]
+            asteroids = asteroids.concat(newAsteroid2);
+          }
+        }
+
+        function fireRailgun(){
+          let newProjectile = [[0,0,0,0]] //x,y,Vx,Vy of new projectile
+          newProjectile[0][0] = ship[0]
+          newProjectile[0][1] = ship[1]
+          newProjectile[0][2] = ship[2] + -30000*Math.cos(ship[5])
+          newProjectile[0][3] = ship[3] + -30000*Math.sin(ship[5])
+          projectiles = projectiles.concat(newProjectile);
+          fuel -= 200
+        }
+
+        function explode(){
+          explosions.sort(function (a, b) {
+            return a[7] - b[7];
+          });
+
+          for(let i = 0; i < explosions.length; i++){
+            ctx.globalAlpha = 1
+            explosions[i][0] += (explosions[i][2]*t)/500000
+            explosions[i][1] += (explosions[i][3]*t)/500000
+            if(explosions[i][4] <= 70 || explosions[i][5] >= 50){
+              explosions[i][5] += t/50
+            }else if(explosions[i][5] >= 25){
+              explosions[i][5] += t/30
+            }else{
+              explosions[i][5] += t/15
+            }
+
+            if(shipJustDestroyedPlanet && explosions[i][5] >= 80){
+              shipJustDestroyedPlanet = false
+            }
+
+            if(explosions[i][6] <= 60){
+              explosions[i][6] = 60 - 60*(explosions[i][5]/explosions[i][4])
+            }else{
+              explosions[i][6] += (explosions[i][5]/explosions[i][4])/10
+            }
+            
+
+            explosions[i][7] = 100 - 90*(explosions[i][5]/explosions[i][4])
+            
+            if(explosions[i][5] >= explosions[i][4]){
+              explosions.splice(i, 1);
+            }else{
+              let grd = ctx.createRadialGradient(explosions[i][0],explosions[i][1],2,explosions[i][0],explosions[i][1],explosions[i][5]);
+              if(8.5*explosions[i][5]>explosions[i][4]){
+                grd.addColorStop(0,"transparent");
+              }
+              ctx.globalAlpha = 1 - Math.pow((explosions[i][5]/explosions[i][4]), 4)
+              if(5*explosions[i][5]<0.8*explosions[i][4]){
+                grd.addColorStop(Math.pow((6*explosions[i][5]/explosions[i][4]), 3),"hsl("+explosions[i][6]+", 100%, "+ explosions[i][7] + "%)");
+                grd.addColorStop(0.8,"hsl("+explosions[i][6]+", 100%, "+ explosions[i][7] + "%)");
+              }else{
+                grd.addColorStop(0.8,"hsl("+explosions[i][6]+", 100%, "+ explosions[i][7] + "%)");
+              }
+              grd.addColorStop(1, "transparent")
+              ctx.beginPath();
+              ctx.arc(explosions[i][0], explosions[i][1], explosions[i][5], 0, Math.PI * 2, true);
+              ctx.fillStyle = grd
+              if(justDied == 0){
+                ctx.fill();
+              }else if(explosions[i][7] > 12){
+                ctx.fill();
+              }
+              
+            }
+          }
+        }
+
+        function planetDamage(){
+          for(let i = 0; i < planets.length; i++){
+            if(planets[i][11] > Math.sqrt(planets[i][4])){
+              asteroidImpact(planets[i][0], planets[i][1], planets[i][2], planets[i][3], planets[i][4]*1000)
+              planets.splice(i, 1);
+              planetaryCollision(planets[i][0], planets[i][1], planets[i][0], planets[i][1], planets[i][2], planets[i][3], 0, 0, planets[i][4], 0)
+            }else if(planets[i][11] > 0){
+              planets[i][11] -= 1000
+            }
+            console.log(planets[i][11])
+          }
+        }
+
+        function orbit(){
+          if(orbitCoolDown>0){
+            orbitCoolDown -= t
+          }else{
+            orbitCoolDown = 0
+          }
+          //draws orbit ring for all planets; opacity = remaining fuel of planet / max fuel of planet
+          for(let i = 0; i < planets.length; i ++){
+            if(planets[i][10]>0){
+              let grd = ctx.createRadialGradient(planets[i][0],planets[i][1],2,planets[i][0],planets[i][1],planets[i][8]);
+              grd.addColorStop((.5*(1-planets[i][10]/planets[i][9]))+.35,"transparent");
+              ctx.globalAlpha = .5*Math.pow(planets[i][10]/planets[i][9], .7)
+              grd.addColorStop(.9,"hsl(122, 45%, " + 35 + "%)");
+              grd.addColorStop(1,"transparent");
+
+              ctx.beginPath();
+              ctx.arc(planets[i][0], planets[i][1], planets[i][8], 0, Math.PI * 2, true);
+              ctx.fillStyle = grd
+              ctx.fill();
+
+              ctx.beginPath();
+              ctx.arc(planets[i][0], planets[i][1], 0.9*planets[i][8], 0, Math.PI * 2, true);
+              ctx.lineWidth = .5
+              ctx.strokeStyle = "hsl(122, 45%, " + 70 + "%)"
+              ctx.stroke();
+            }
+            
+            //if ship is within orbital radius of a planet, increase fuel of ship and decrease remaining fuel of planet
+            if(distance(planets[i][0],planets[i][1],ship[0],ship[1]) < 500000*planets[i][8]){
+              if((fuel < maxFuel*.99) && (planets[i][10] > 0)){
+                fuel += 10*t + 8*t*(1 - fuel/maxFuel) 
+                planets[i][10] -= 10*t
+                inOrbit = true
+              }
+
+              if(inOrbit && (fuel/maxFuel >= .99) && (orbitCoolDown == 0)){
+                planetsOrbited += 1
+                orbitCoolDown = 10000
+                fuel = maxFuel
+                planets[i][10] = 0
+                inOrbit = false
+                newPlanet();
+              }else if((planets[i][10] <= 0) && inOrbit && (orbitCoolDown == 0)){
+                planetsOrbited += 1
+                orbitCoolDown = 30000
+                planets[i][10] = 0
+                inOrbit = false
+                newPlanet();
+              }
+            }else{
+              inOrbit = false
+            }
+          }
+        }
+
+        //adds a new planet to planets[] from newPlanets[], then calls randomPlanet() to generate its characteristics
+        function newPlanet(){
+          if(newPlanets.length > 0){
+            planets.push(newPlanets[0]);
+            newPlanets.shift();
+
+            randomPlanet(planets.length - 1);
+          }
+        }
+
+        //generates position, velocity, m, etc. of a random planet. Takes position in planets[] as input
+        function randomPlanet(i){
+          let bigOrSmall = Math.random()*10
+          if(bigOrSmall > 9){
+            planets[i][4] = (4*Math.pow((Math.random() - .5), 3) + .5) * (4*Math.pow((Math.random() - .5), 3) + .5) * 1e26;
+          }else{
+            planets[i][4] = (4*Math.pow((Math.random() - .5), 3) + .5) * (4*Math.pow((Math.random() - .5), 3) + .5) * 3e25
+          }
+          planets[i][5] = Math.cbrt((4*planets[i][4])/(3*Math.PI))*1e-7;
+
+          let hue = Math.round(Math.random()*359)
+          let saturation = Math.round(Math.random()*60 + 10)
+          let lightness = Math.round(Math.random()*30 + 10)
+          
+          planets[i][6] = "hsl(" + hue + ", " + saturation + "%, " + (lightness * .6) + "%)";
+          planets[i][7] = "hsl(" + hue + ", " + (saturation - 10) + "%, " + (lightness*2 + 10) + "%)"
+          planets[i][8] = 120/(1+Math.pow(3, -1*(Math.log10(planets[i][4]/6e24)-.5))) + 20
+          planets[i][9] = (maxFuel*2/3)/(1+Math.pow(3, -1*(Math.log10(planets[i][4]/6e24)-.5)))*2 + (maxFuel/3)
+          planets[i][10] = planets[i][9] - 1
+          planets[i][11] = 0
+
+          let unfoldedPoint = Math.random()*4440
+          let velocity = Math.random()*4000+1000
+          let dist
+
+          if(0 < unfoldedPoint && unfoldedPoint <= 800){
+            planets[i][0] = -100
+            planets[i][1] = unfoldedPoint
+
+            dist = distance(planets[i][0], planets[i][1], 710 + (Math.random()*100-50), 200 - Math.random()*150)/500000
+
+            planets[i][2] = velocity*(((710 + (Math.random()*100-50))-planets[i][0]) / dist)
+            planets[i][3] = velocity*(((200 - Math.random()*150)-planets[i][1]) / dist)
+          }else if(800 < unfoldedPoint && unfoldedPoint <= 2220){
+            planets[i][0] = unfoldedPoint - 800
+            planets[i][1] = 900
+
+            dist = distance(planets[i][0], planets[i][1], (510 - Math.random()*250), (400 + (Math.random()*100-50)))/500000
+
+            planets[i][2] = velocity*(((510 - Math.random()*250)-planets[i][0]) / dist)
+            planets[i][3] = velocity*(((400 + (Math.random()*100-50))-planets[i][1]) / dist)
+          }else if(2220 < unfoldedPoint && unfoldedPoint <= 3020){
+            planets[i][0] = 1520
+            planets[i][1] = 3020 - unfoldedPoint
+
+            dist = distance(planets[i][0], planets[i][1], (710 + (Math.random()*100-50)), (600 + Math.random()*150))/500000
+
+            planets[i][2] = velocity*(((710 + (Math.random()*100-50))-planets[i][0]) / dist)
+            planets[i][3] = velocity*(((600 + Math.random()*150)-planets[i][1]) / dist)
+          }else{
+            planets[i][0] = 4440 - unfoldedPoint
+            planets[i][1] = -100
+
+            dist = distance(planets[i][0], planets[i][1], (910 + Math.random()*250), (400 + (Math.random()*100-50)))/500000
+
+            planets[i][2] = velocity*(((910 + Math.random()*250)-planets[i][0]) / dist)
+            planets[i][3] = velocity*(((400 + (Math.random()*100-50))-planets[i][1]) / dist)
+          }
+
+          for(let j = 0; j < (Math.pow(Math.random(), Math.log10(1e26/planets[i][4]))*3*Math.log10(planets[i][4]/1e22)) - 1; j++){
+            let newAsteroid = [[0, 0, 0, 0, 0, 0]] //[x, y, Vx, Vy, m, r] of new asteroid
+            newAsteroid[0][4] = (4*Math.pow((Math.random() - .5), 3) + .5) * (4*Math.pow((Math.random() - .5), 3) + .5) * (Math.pow(Math.random()*3), 3) * 3e22;
+            newAsteroid[0][5] = Math.cbrt((4*newAsteroid[0][4])/(3*Math.PI))*1e-7;
+            let orbitDist = Math.random()*planets[i][5]*4 + planets[i][5]*2
+            let randSide = Math.floor(Math.random()*4)
+            if(randSide == 0){
+              newAsteroid[0][0] = planets[i][0] + orbitDist
+              newAsteroid[0][1] = planets[i][1]
+              newAsteroid[0][2] = planets[i][2]
+              newAsteroid[0][3] = Math.sqrt(G*planets[i][4]/(orbitDist*500000)) + planets[i][3]
+            }else if(randSide == 1){
+              newAsteroid[0][0] = planets[i][0]
+              newAsteroid[0][1] = planets[i][1] - orbitDist
+              newAsteroid[0][2] = Math.sqrt(G*planets[i][4]/(orbitDist*500000)) + planets[i][2]
+              newAsteroid[0][3] = planets[i][3]
+            }else if(randSide == 2){
+              newAsteroid[0][0] = planets[i][0] - orbitDist
+              newAsteroid[0][1] = planets[i][1]
+              newAsteroid[0][2] = planets[i][2]
+              newAsteroid[0][3] = -1*Math.sqrt(G*planets[i][4]/(orbitDist*500000)) + planets[i][3]
+            }else{
+              newAsteroid[0][0] = planets[i][0]
+              newAsteroid[0][1] = planets[i][1] + orbitDist
+              newAsteroid[0][2] = -1*Math.sqrt(G*planets[i][4]/(orbitDist*500000)) + planets[i][2]
+              newAsteroid[0][3] = planets[i][3]
+            }
+
+            asteroids = asteroids.concat(newAsteroid);
+          }
+
+          //if planet is too close to another planet, generate again
+          for(let j = 0; j < planets.length; j++){
+            if((j != i) && (distance(planets[i][0],planets[i][1],planets[j][0],planets[j][1]) < 500000*(600-planets.length*60))){
+              randomPlanet(i);
+              break;
+            }
+          }
+        }
+
+        //generates a new asteroid on the edge of the screen
+        function newAsteroid(){
+          let newAsteroid = [[0, 0, 0, 0, 0, 0]] //[x, y, Vx, Vy, m, r] of new asteroid
+
+          let unfoldedPoint = Math.random()*4440
+          if(0 < unfoldedPoint && unfoldedPoint <= 800){
+            newAsteroid[0][0] = -100
+            newAsteroid[0][1] = unfoldedPoint
+            newAsteroid[0][2] = (Math.random()*1400 + 80) * 3
+            newAsteroid[0][3] = (Math.random()*800 - 400 + (400 - unfoldedPoint)) * 5
+          }else if(800 < unfoldedPoint && unfoldedPoint <= 2220){
+            newAsteroid[0][0] = unfoldedPoint - 800
+            newAsteroid[0][1] = 900
+            newAsteroid[0][2] = (Math.random()*1420 - 710 + (710 - (unfoldedPoint - 800))) * 6
+            newAsteroid[0][3] = (-1*(Math.random()*1000 + 50)) * 4
+          }else if(2220 < unfoldedPoint && unfoldedPoint <= 3020){
+            newAsteroid[0][0] = 1520
+            newAsteroid[0][1] = 3020 - unfoldedPoint
+            newAsteroid[0][2] = (-1*(Math.random()*1400 + 80)) * 3
+            newAsteroid[0][3] = (Math.random()*800 - 400 + (400 - (3020 - unfoldedPoint))) * 5
+          }else{
+            newAsteroid[0][0] = 4440 - unfoldedPoint
+            newAsteroid[0][1] = -100
+            newAsteroid[0][2] = (Math.random()*1420 - 710 + (710 - (4440 - unfoldedPoint))) * 6
+            newAsteroid[0][3] = (Math.random()*1000 + 50) * 4
+          }
+          newAsteroid[0][4] = (4*Math.pow((Math.random() - .5), 3) + .5) * (4*Math.pow((Math.random() - .5), 3) + .5) * 3e22;
+          newAsteroid[0][5] = Math.cbrt((4*newAsteroid[0][4])/(3*Math.PI))*1e-7;
+
+          asteroids = asteroids.concat(newAsteroid);
+        }
+
+        //checks whether objects have collided
+        function collisions(){
+
+          //checks if planets have flown off screen
+          for(let i = 0; i < planets.length; i++){
+            if((planets[i][0]>=1520)||(planets[i][0]<=-100)||(planets[i][1]>=900)||(planets[i][1]<=-100)){
+              randomPlanet(i);
+            }
+          }
+
+          //checks if asteroids have crashed into force field
+          for(let i = 0; i < asteroids.length; i++){
+            if((distance(-2.5*Math.cos(ship[5]) + ship[0],-2.5*Math.sin(ship[5]) + ship[1],asteroids[i][0],asteroids[i][1]) < (500000*asteroids[i][5] + 500000*20)) && (forceFieldActivated == true) && (shipJustDestroyedPlanet == false)){
+              let relativeVx = asteroids[i][2] - ship[2]
+              let relativeVy = asteroids[i][3] - ship[3]
+              let relativeV = Math.sqrt(relativeVy*relativeVy + relativeVx*relativeVx)
+              let KEasteroid = .5*asteroids[i][4]*relativeV*relativeV
+
+              asteroidImpact(asteroids[i][0], asteroids[i][1], ship[2], ship[3], KEasteroid);
+              asteroids.splice(i, 1);
+              score += 2*scoreMod
+            }
+          }
+
+          //checks if asteroids have crashed into planets
+          for(let i = 0; i < asteroids.length; i++){
+            for(let j = 0; j < planets.length; j++){
+              if(distance(planets[j][0],planets[j][1],asteroids[i][0],asteroids[i][1]) < 500000*planets[j][5]){
+                let relativeVx = asteroids[i][2] - planets[j][2]
+                let relativeVy = asteroids[i][3] - planets[j][3]
+                let relativeV = Math.sqrt(relativeVy*relativeVy + relativeVx*relativeVx)
+                let KEasteroid = .5*asteroids[i][4]*relativeV*relativeV
+
+                asteroidImpact(asteroids[i][0], asteroids[i][1], planets[j][2], planets[j][3], KEasteroid);
+                asteroids.splice(i, 1);
+                planets[j][11] += KEasteroid/1e18
+              }
+            }
+          }
+
+          //checks if projectiles have crashed into planets
+          for(let i = 0; i < projectiles.length; i++){
+            for(let j = 0; j < planets.length; j++){
+              if(distance(planets[j][0],planets[j][1],projectiles[i][0],projectiles[i][1]) < 500000*planets[j][5]){
+                asteroidImpact(projectiles[i][0], projectiles[i][1], planets[j][2], planets[j][3], 5e28);
+                projectiles.splice(i, 1);
+              }
+            }
+          }
+
+          //checks if projectiles have hit asteroids
+          for(let i = 0; i < projectiles.length; i++){
+            for(let j = 0; j < asteroids.length; j++){
+              if(distance(asteroids[j][0],asteroids[j][1],projectiles[i][0],projectiles[i][1]) < 5000000){
+                asteroidImpact(asteroids[j][0], asteroids[j][1], asteroids[j][2], asteroids[j][3], 5e28);
+                projectiles.splice(i, 1);
+                asteroids.splice(j, 1);
+                score += 20*scoreMod
+              }
+            }
+          }
+
+          //checks if projectiles have flown off screen
+          for(let i = 0; i < projectiles.length; i++){
+            if((projectiles[i][0]>1720)||(projectiles[i][0]<-300)||(projectiles[i][1]>1100)||(projectiles[i][1]<-300)){
+              projectiles.splice(i, 1);
+            }
+          }
+          
+          //checks if asteroid has hit ship
+          for(let i = 0; i < asteroids.length; i++){
+            if((distance(ship[0],ship[1],asteroids[i][0],asteroids[i][1]) < (500000*asteroids[i][5] + 1500000)) && (forceFieldActivated == false) && (shipJustDestroyedPlanet == false) && (justDied == 0)){
+              let relativeVx = asteroids[i][2] - ship[2]
+              let relativeVy = asteroids[i][3] - ship[3]
+              let relativeV = Math.sqrt(relativeVy*relativeVy + relativeVx*relativeVx)
+              let KEasteroid = .5*asteroids[i][4]*relativeV*relativeV
+
+              let HPlost = 100 + (KEasteroid/1e28)
+
+              if(HPlost < HP){
+                HP -= HPlost
+                thrusterOn = false
+                ship[6] += Math.random()*0.001 - 0.0005
+                ship[2] += relativeVx/7 + (Math.random()*500-250)
+                ship[3] += relativeVy/7 + (Math.random()*500-250)
+                asteroidImpact(ship[0], ship[1], ship[2], ship[3], .5*KEasteroid);
+                asteroids.splice(i, 1);
+              }else{
+                deathMessage = "With " + shipName + "'s long-range scopes as damaged as they were, you never saw it coming. The little speck on your visual feed looked just like all the other asteroids, hardly distinguishable from a tiny drifting star twinking in the distance. Until it didn't. The spinning potato-shaped lump of rock grew from a pebble to a mountain in just moments as it came screaming out of the darkness. The laser meteoroid defense system feebly tried to neutralize the threat, but you might as well have tried to stop a freight train with a flashlight. A wave of sheer panic barely had time to wash over you before " + shipName + " was reduced to smithereens, you along with it. \n\nSCORE: " + Math.round(score);
+                justDied += 1
+                asteroidImpact(ship[0], ship[1], ship[2], ship[3], 2e30);
+                asteroids.splice(i, 1);
+              }
+            }
+          }
+
+          //checks if asteroids have collided (but not if they have just generated)
+          for(let i = 0; i < asteroids.length; i++){
+            let explosionPower = 0
+            for(let k = 0; k < explosions.length; k++){
+
+              if(distance(explosions[k][0],explosions[k][1],asteroids[i][0],asteroids[i][1]) < 500000*explosions[k][5]){
+                
+                explosionPower += (Math.sqrt(explosions[k][4]) * (1 - explosions[k][5]/explosions[k][4])) * ((distance(asteroids[i][0],asteroids[i][1],explosions[k][0],explosions[k][1]) + 500000*20) / (500000*explosions[k][5]) )
+              }
+            }
+            if(explosionPower < 6){
+              for(let j = 0; j < asteroids.length; j++){
+                if((j != i) && (distance(asteroids[i][0],asteroids[i][1],asteroids[j][0],asteroids[j][1]) < 600000*(asteroids[i][5]+asteroids[j][5]))){
+                  const [x, y] = centerOfmass(asteroids[i][0], asteroids[i][1], asteroids[i][4], asteroids[j][0], asteroids[j][1], asteroids[j][4]);
+                  let Vx = (asteroids[i][2]*asteroids[i][4] + asteroids[j][2]*asteroids[j][4]) / (asteroids[i][4] + asteroids[j][4])
+                  let Vy = (asteroids[i][3]*asteroids[i][4] + asteroids[j][3]*asteroids[j][4]) / (asteroids[i][4] + asteroids[j][4])
+                  let KE = ((.5*asteroids[i][4]*(asteroids[i][2]*asteroids[i][2] + asteroids[i][3]*asteroids[i][3])) + (.5*asteroids[j][4]*(asteroids[j][2]*asteroids[j][2] + asteroids[j][3]*asteroids[j][3])))
+
+                  asteroidImpact(x, y, Vx, Vy, KE);
+                  if(i>j){
+                    asteroids.splice(i, 1);
+                    asteroids.splice(j, 1);
+                  }else{
+                    asteroids.splice(j, 1);
+                    asteroids.splice(i, 1);
+                  }
+                }
+              }
+            }
+          }
+
+          //checks if asteroids have flown off screen
+          for(let i = 0; i < asteroids.length; i++){
+            if((asteroids[i][0]>1720)||(asteroids[i][0]<-300)||(asteroids[i][1]>1100)||(asteroids[i][1]<-300)){
+              asteroids.splice(i, 1);
+            }
+          }
+
+          //checks if ship is about to crash into a planet or has crashed into a planet
+          for(let i = 0; i < planets.length; i++){
+            // if(dangerouslyClose && (distance(planets[i][0],planets[i][1],ship[0],ship[1]) > 1500000*planets[i][5] + 5*500000)){
+            //   dangerouslyClose = false
+            //   t = 15
+            //   tMod = 1
+            // }
+            // if(!dangerouslyClose && (distance(planets[i][0],planets[i][1],ship[0],ship[1]) <= 1000000*planets[i][5] + 5*500000) && (distance(planets[i][0],planets[i][1],ship[0],ship[1]) > 600000*planets[i][5] + 3*500000)){
+            //   dangerouslyClose = true
+            //   aboutToHitPlanet = false
+            //   t = 15/2
+            //   tMod = .5
+            // }else if(distance(planets[i][0],planets[i][1],ship[0],ship[1]) <= 600000*planets[i][5] + 3*500000){
+            //   dangerouslyClose = false
+            //   aboutToHitPlanet = true
+            //   t = 15/4
+            //   tMod = .25
+            // }else{
+            //   dangerouslyClose = false
+            //   aboutToHitPlanet = false
+            // }
+            
+            if(distance(planets[i][0],planets[i][1],ship[0],ship[1]) < 500000*planets[i][5] && (justDied == 0)){
+              if(forceFieldActivated && (HP > 400) && (fuel/maxFuel > .3)){
+                HP -= Math.random()*150+250
+                fuel -= maxFuel*(Math.random()*0.2)
+                ship[2] = planets[i][2]
+                ship[3] = planets[i][3]
+                asteroidImpact(planets[i][0], planets[i][1], planets[i][2], planets[i][3], 10e30);
+                let x = planets[i][0]
+                let y = planets[i][1]
+                let Vx = planets[i][2] + ship[2]/10
+                let Vy = planets[i][3] + ship[3]/10
+                let m = planets[i][4]*2
+                randomPlanet(i);
+                planetaryCollision(x, y, x, y, Vx, Vy, 0, 0, m, 0);
+                shipJustDestroyedPlanet = true
+              }else{
+                deathMessage = "The ball of rock and gas ahead rapidly expands into a curved horizon that dominates the visual feed as " + shipName + " careens toward the planet. The main drive can shove " + shipName + " around like a feather in a gale out in the open expanse of space, but it can't win a fight against the inexorable tug of gravity any better than a brick can at this distance. The ship begins to vibrate violently as it slams into the upper atmosphere, the visual feed cutting out with a flare of orange flame. It quickly becomes apparent that " + shipName + ", designed for maneuvering out in the void, wasn't built to handle this kind of aerodynamic stress. The hull groans and begins to spin uncontrollably as " + shipName + " streaks through the sky, now just another shooting star to the uncaring terrain below. \n\nSCORE: " + Math.round(score);
+                justDied += 1
+                asteroidImpact(ship[0], ship[1], planets[i][2], planets[i][3], 2e30);
+              }
+            }
+          }
+
+          //checks if ship is inside explosion
+          for(let i = 0; i < explosions.length; i++){
+            if((distance(explosions[i][0],explosions[i][1],ship[0],ship[1]) < 450000*explosions[i][5]) && (forceFieldActivated == false) && (justDied == 0)){
+              let HPlost = (t * (8*Math.pow(explosions[i][4], 0.5)) * (1 - explosions[i][5]/explosions[i][4]) / (400)) * (distance(explosions[i][0],explosions[i][1],ship[0],ship[1]) / (2*500000*explosions[i][5]))
+              if(HPlost < HP){
+                HP -= HPlost
+                explosions[i][8] = false
+              }else{
+                deathMessage = "Superheated debris blossoms outwards from the collision. One half times mass times velocity sqared, you recall - the formula for kinetic energy. And behind " + shipName + ", a few billion trillion kilograms of rock traveling several kilometers a second have just turned that kinetic energy into a lot of heat and little pieces. The automated point defense system is instantly overwhelmed; designed to vaporize threatning micrometeoroids with targeted lasers, it can't do much against a cloud of shrapnel and already-vaporized rock. A million little holes are ripped through " + shipName + "'s hull all at once, and a few bigger holes are ripped through you. The sound of depressurization alarms blaring rapidly fades to silence without any air to carry the vibrations. \n\n SCORE: " + Math.round(score);
+                justDied += 1
+                asteroidImpact(ship[0], ship[1], ship[2], ship[3], 2e30);
+              }
+            }
+          }
+
+          //teleports ship if flown off screen
+          if(!inOrbit){
+            if(ship[0]>1460){
+              ship[0] = -20
+              ship[1] = 800 - ship[1]
+
+              let fuelLost = Math.random()*10000 + 10000
+              let HPlost = Math.random()*40+20
+              if(HPlost < HP && fuelLost < fuel){
+                HP -= HPlost
+                fuel -= fuelLost
+              }else{
+                alert(shipName + " flew too far and was lost in space! Score: " + Math.round(score));
+                reset();
+              }
+            }
+            if(ship[0]<-40){
+              ship[0] = 1440
+              ship[1] = 800 - ship[1]
+
+              let fuelLost = Math.random()*10000 + 10000
+              let HPlost = Math.random()*40+20
+              if(HPlost < HP && fuelLost < fuel){
+                HP -= HPlost
+                fuel -= fuelLost
+              }else{
+                alert(shipName + " flew too far and was lost in space! Score: " + Math.round(score));
+                reset();
+              }
+            }
+            if(ship[1]>840){
+              ship[0] = 1420 - ship[0]
+              ship[1] = -20
+
+              let fuelLost = Math.random()*10000 + 10000
+              let HPlost = Math.random()*40+20
+              if(HPlost < HP && fuelLost < fuel){
+                HP -= HPlost
+                fuel -= fuelLost
+              }else{
+                alert(shipName + " flew too far and was lost in space! Score: " + Math.round(score));
+                reset();
+              }
+            }
+            if(ship[1]<-40){
+              ship[0] = 1420 - ship[0]
+              ship[1] = 820
+
+              let fuelLost = Math.random()*10000 + 10000
+              let HPlost = Math.random()*40+20
+              if(HPlost < HP && fuelLost < fuel){
+                HP -= HPlost
+                fuel -= fuelLost
+              }else{
+                alert(shipName + " flew too far and was lost in space! Score: " + Math.round(score));
+                reset();
+              }
+            }
+
+          }
+
+          //checks if planets have collided
+          for(let i = 0; i < planets.length; i++){
+            for(let j = 0; j < planets.length; j++){
+              if((!alreadyExploded) && (j != i) && (distance(planets[i][0],planets[i][1],planets[j][0],planets[j][1]) < 500000*(planets[i][5]+planets[j][5]))){
+                const [x, y] = centerOfmass(planets[i][0], planets[i][1], planets[i][4], planets[j][0], planets[j][1], planets[j][4]);
+                let Vx = (planets[i][2]*planets[i][4] + planets[j][2]*planets[j][4]) / (planets[i][4] + planets[j][4])
+                let Vy = (planets[i][3]*planets[i][4] + planets[j][3]*planets[j][4]) / (planets[i][4] + planets[j][4])
+                let explosionEnergy = ((.5*planets[i][4]*(planets[i][2]*planets[i][2] + planets[i][3]*planets[i][3])) + (.5*planets[j][4]*(planets[j][2]*planets[j][2] + planets[j][3]*planets[j][3])))/3    //KEtotal
+
+                asteroidImpact(x, y, Vx, Vy, explosionEnergy);
+                alreadyExploded = true
+              }
+              if(alreadyExploded && (j != i) && (distance(planets[i][0],planets[i][1],planets[j][0],planets[j][1]) <= 300000*(planets[i][5]+planets[j][5]))){
+                let x1 = planets[i][0]
+                let y1 = planets[i][1]
+                let Vx1 = planets[i][2]
+                let Vy1 = planets[i][3]
+                let m1 = planets[i][4]
+
+                let x2 = planets[j][0]
+                let y2 = planets[j][1]
+                let Vx2 = planets[j][2]
+                let Vy2 = planets[j][3]
+                let m2 = planets[j][4]
+
+                randomPlanet(i);
+                randomPlanet(j);
+
+                planetaryCollision(x1, y1, x2, y2, Vx1, Vy1, Vx2, Vy2, m1, m2); 
+                alreadyExploded = false             
+              }
+            }
+          }
+        
+        }
+
+        //Resets game. Creates a standard planet and randomly generated moon, then determines the correct position and velocity of each in order to complete circular orbits around their center of m at the center of the screen. Positions ship so as to orbit standard planet.
+        function reset(){
+          canvas.style.backgroundColor = "#000000"
+          running = true
+          thrusterOn = false
+          pancakeMode = false
+          healing = false
+          forceFieldActivated = false
+          turningLeft = false
+          turningRight = false
+          timeElapsed = 0
+          fuel = maxFuel*.4
+          planetsOrbited = 0
+          score = 0
+          justDied = 0
+          deathMessage = ""
+          alreadyExploded = false
+          shipJustDestroyedPlanet = false
+          HP = HPmax-200
+          t = 15
+          tMod = 1
+
+          while(planets.length > 2){
+            newPlanets.unshift(planets[planets.length - 1]);
+            planets.pop();
+          }
+
+          while(asteroids.length > 0){
+            asteroids.pop();
+          }
+
+          while(explosions.length > 0){
+            explosions.pop();
+          }
+
+          while(projectiles.length > 0){
+            projectiles.pop();
+          }
+
+          Planet1[0] = 0
+          Planet1[1] = 400
+          Planet1[2] = 0
+          Planet1[3] = 0
+          Planet1[4] = 6e24
+          Planet1[5] = 14
+          Planet1[6] = "#002385"
+          Planet1[7] = "#4287f5"
+          Planet1[8] = 0
+          Planet1[9] = 0
+          Planet1[10] = 0
+          Planet1[11] = 0
+
+          Planet2[0] = 400
+          Planet2[1] = 400
+          Planet2[2] = 0
+          Planet2[3] = 0
+
+          Planet2[4] = (4*Math.pow((Math.random() - .5), 3) + .5) * 6e24
+          Planet2[5] = Math.cbrt((4*Planet2[4])/(3*Math.PI))*1e-7;
+
+          let centerOfmass = ((Planet1[0]*Planet1[4] + Planet2[0]*Planet2[4])/(Planet1[4]+Planet2[4]))
+
+          Planet1[0] += (710 - centerOfmass)
+          Planet2[0] += (710 - centerOfmass)
+
+          Planet2[3] = Math.sqrt((G*Planet1[4]*Planet1[4])/(200000000*(Planet1[4]+Planet2[4])))
+          Planet1[3] = -1*Math.sqrt((G*Planet2[4]*Planet2[4])/(200000000*(Planet1[4]+Planet2[4])))
+
+          let hue = Math.round(Math.random()*359)
+          let saturation = Math.round(Math.random()*50 + 10)
+          let lightness = Math.round(Math.random()*45 + 10)
+          
+          Planet2[6] = "hsl(" + hue + ", " + saturation + "%, " + (lightness * .8) + "%)";
+          Planet2[7] = "hsl(" + hue + ", " + (saturation - 10) + "%, " + (lightness + (.5 *(100-lightness))) + "%)"
+          Planet2[8] = 90/(1+Math.pow(3, -1*(Math.log10(Planet2[4]/6e24)-.5))) + 30
+          Planet2[9] = maxFuel
+          Planet2[10] = Planet2[9] - 1
+          Planet1[11] = 0
+
+          if(gameMode == 2){
+            newPlanet();
+            newPlanet();
+            newPlanet();
+            newPlanet();
+
+            ship[4] = 0
+          }else{
+            ship[4] = 100000
+          }
+          
+          ship[0] = Planet1[0]
+          ship[1] = 440
+          ship[2] = -4500
+          ship[3] = Planet1[3]
+          ship[5] = 1*Math.PI
+          ship[6] = 0
+        }
+        reset();
+
+        //Draws ship based on current position and angle
+        function drawShip(){
+          ctx.globalAlpha = 1
+          //force field
+          if(forceFieldActivated&&(fuel>0)){
+            let grd = ctx.createRadialGradient(ship[0], ship[1], 2, ship[0], ship[1],20);
+              grd.addColorStop(.3,"black");
+              grd.addColorStop(1,"#00a2bf");
+              ctx.beginPath();
+              ctx.arc(ship[0], ship[1], 20, 0, Math.PI * 2, true);
+              ctx.fillStyle = grd
+              ctx.fill();
+          }
+
+          ctx.lineWidth = 1.5;
+          ctx.strokeStyle = "#e62020";
+          ctx.setLineDash([]);
+
+          //triangular hull
+          let Xtip = -5*Math.cos(ship[5]) + ship[0] 
+          let Ytip = -5*Math.sin(ship[5]) + ship[1]
+          let Xside1 = 2.5*Math.cos(ship[5]+(Math.PI/2)) + ship[0] + 2*Math.cos(ship[5])
+          let Yside1 = 2.5*Math.sin(ship[5]+(Math.PI/2)) + ship[1] + 2*Math.sin(ship[5])
+          let Xside2 = 2.5*Math.cos(ship[5]-(Math.PI/2)) + ship[0] + 2*Math.cos(ship[5])
+          let Yside2 = 2.5*Math.sin(ship[5]-(Math.PI/2)) + ship[1] + 2*Math.sin(ship[5])
+            
+          ctx.beginPath();
+          ctx.moveTo(Xtip,Ytip);
+          ctx.lineTo(Xside1,Yside1);
+          ctx.lineTo(Xside2,Yside2);
+          ctx.lineTo(Xtip,Ytip);
+          ctx.stroke();
+
+          //drive plume
+          if(thrusterOn&&(fuel>0)){
+            if(pancakeMode){
+              let xExhaust = 60*Math.cos(ship[5]) + ship[0];
+              let yExhaust = 60*Math.sin(ship[5]) + ship[1];
+              let linGrd = ctx.createLinearGradient(ship[0], ship[1], xExhaust, yExhaust);
+              linGrd.addColorStop(0, 'transparent');
+              linGrd.addColorStop(0.15, '#c94dff');
+              linGrd.addColorStop(1, 'transparent');
+              let linGrd2 = ctx.createLinearGradient(ship[0], ship[1], xExhaust, yExhaust);
+              linGrd2.addColorStop(0, 'transparent');
+              linGrd2.addColorStop(0.2, '#ffffff');
+              linGrd2.addColorStop(0.6, 'transparent');
+              ctx.beginPath();
+              ctx.moveTo(ship[0],ship[1]);
+              ctx.lineWidth = 4.5;
+              ctx.strokeStyle = linGrd;
+              ctx.lineTo(xExhaust,yExhaust);
+              ctx.stroke();
+
+              ctx.beginPath();
+              ctx.moveTo(ship[0],ship[1]);
+              ctx.lineWidth = 2;
+              ctx.strokeStyle = linGrd2;
+              ctx.lineTo(xExhaust,yExhaust);
+              ctx.stroke();
+            }else{
+              let xExhaust = 30*Math.cos(ship[5]) + ship[0];
+              let yExhaust = 30*Math.sin(ship[5]) + ship[1];
+              let linGrd = ctx.createLinearGradient(ship[0], ship[1], xExhaust, yExhaust);
+              linGrd.addColorStop(0, 'transparent');
+              linGrd.addColorStop(0.25, '#00bfff');
+              linGrd.addColorStop(1, 'transparent');
+              let linGrd2 = ctx.createLinearGradient(ship[0], ship[1], xExhaust, yExhaust);
+              linGrd2.addColorStop(0, 'transparent');
+              linGrd2.addColorStop(0.3, '#ffffff');
+              linGrd2.addColorStop(0.6, 'transparent');
+              ctx.beginPath();
+              ctx.moveTo(ship[0],ship[1]);
+              ctx.lineWidth = 3.5;
+              ctx.strokeStyle = linGrd;
+              ctx.lineTo(xExhaust,yExhaust);
+              ctx.stroke();
+
+              ctx.beginPath();
+              ctx.moveTo(ship[0],ship[1]);
+              ctx.lineWidth = 1;
+              ctx.strokeStyle = linGrd2;
+              ctx.lineTo(xExhaust,yExhaust);
+              ctx.stroke();
+            }  
+          }
+
+          //RCS thrusters
+          if(turningLeft && fuel > 0){
+            let xStern = 12*Math.cos(ship[5]+(Math.PI/2)) + ship[0] + 2*Math.cos(ship[5])
+            let yStern = 12*Math.sin(ship[5]+(Math.PI/2)) + ship[1] + 2*Math.sin(ship[5])
+            let linGrd = ctx.createLinearGradient(Xside1, Yside1, xStern, yStern);
+            linGrd.addColorStop(0.05, 'transparent');
+            linGrd.addColorStop(0.1, '#ffffff');
+            linGrd.addColorStop(1, 'transparent');
+            ctx.fillStyle = linGrd;
+            ctx.beginPath();
+            ctx.moveTo(Xside1, Yside1);
+            ctx.lineTo(xStern + -4*Math.cos(ship[5]), yStern + -4*Math.sin(ship[5]));
+            ctx.lineTo(xStern + 2*Math.cos(ship[5]), yStern + 2*Math.sin(ship[5]));
+            ctx.closePath();
+            ctx.fill();
+
+            let xBow = -6*Math.cos(ship[5]) + ship[0] + 8*Math.cos(ship[5]-(Math.PI/2))
+            let yBow = -6*Math.sin(ship[5]) + ship[1] + 8*Math.sin(ship[5]-(Math.PI/2))
+            let linGrd2 = ctx.createLinearGradient(Xtip, Ytip, xBow, yBow);
+            linGrd2.addColorStop(0.1, '#ffffff');
+            linGrd2.addColorStop(1, 'transparent');
+            ctx.fillStyle = linGrd2;
+            ctx.beginPath();
+            ctx.moveTo(Xtip, Ytip);
+            ctx.lineTo(xBow + -5*Math.cos(ship[5]), yBow + -5*Math.sin(ship[5]));
+            ctx.lineTo(xBow + 1*Math.cos(ship[5]), yBow + 1*Math.sin(ship[5]));
+            ctx.closePath();
+            ctx.fill();
+          }
+          if(turningRight && fuel > 0){
+            let xStern = 12*Math.cos(ship[5]-(Math.PI/2)) + ship[0] + 2*Math.cos(ship[5])
+            let yStern = 12*Math.sin(ship[5]-(Math.PI/2)) + ship[1] + 2*Math.sin(ship[5])
+            let linGrd = ctx.createLinearGradient(Xside2, Yside2, xStern, yStern);
+            linGrd.addColorStop(0.05, 'transparent');
+            linGrd.addColorStop(0.1, '#ffffff');
+            linGrd.addColorStop(1, 'transparent');
+            ctx.fillStyle = linGrd;
+            ctx.beginPath();
+            ctx.moveTo(Xside2, Yside2);
+            ctx.lineTo(xStern + -4*Math.cos(ship[5]), yStern + -4*Math.sin(ship[5]));
+            ctx.lineTo(xStern + 2*Math.cos(ship[5]), yStern + 2*Math.sin(ship[5]));
+            ctx.closePath();
+            ctx.fill();
+
+            let xBow = -6*Math.cos(ship[5]) + ship[0] + 8*Math.cos(ship[5]+(Math.PI/2))
+            let yBow = -6*Math.sin(ship[5]) + ship[1] + 8*Math.sin(ship[5]+(Math.PI/2))
+            let linGrd2 = ctx.createLinearGradient(Xtip, Ytip, xBow, yBow);
+            linGrd2.addColorStop(0.1, '#ffffff');
+            linGrd2.addColorStop(1, 'transparent');
+            ctx.fillStyle = linGrd2;
+            ctx.beginPath();
+            ctx.moveTo(Xtip, Ytip);
+            ctx.lineTo(xBow + -5*Math.cos(ship[5]), yBow + -5*Math.sin(ship[5]));
+            ctx.lineTo(xBow + 1*Math.cos(ship[5]), yBow + 1*Math.sin(ship[5]));
+            ctx.closePath();
+            ctx.fill();
+          }
+        }
+        drawShip();
+
+        //draws planets
+        function drawPlanets(){
+          ctx.globalAlpha = 1
+          //Loops through array planets[] to draw each one
+          for(let i = 0; i < planets.length; i++){
+            let grd = ctx.createRadialGradient(planets[i][0],planets[i][1],2,planets[i][0],planets[i][1],planets[i][5]);
+            grd.addColorStop(0,planets[i][7]);
+            grd.addColorStop(1,planets[i][6]);
+            ctx.beginPath();
+            ctx.arc(planets[i][0], planets[i][1], planets[i][5], 0, Math.PI * 2, true);
+            ctx.fillStyle = grd
+            ctx.fill();
+          }
+        }
+        drawPlanets();
+
+        function drawAsteroids(){
+          ctx.globalAlpha = 1
+          for(let i = 0; i < asteroids.length; i++){
+            ctx.beginPath();
+            ctx.arc(asteroids[i][0], asteroids[i][1], asteroids[i][5], 0, Math.PI * 2, true);
+            ctx.fillStyle = "#ffffff"
+
+            let explosionPower = 0
+            for(let k = 0; k < explosions.length; k++){
+              if(distance(explosions[k][0],explosions[k][1],asteroids[i][0],asteroids[i][1]) < 500000*explosions[k][5]){
+                
+                explosionPower += (Math.sqrt(explosions[k][4]) * (1 - explosions[k][5]/explosions[k][4])) * ((distance(asteroids[i][0],asteroids[i][1],explosions[k][0],explosions[k][1]) + 500000*20) / (500000*explosions[k][5]) )
+              }
+            }
+            ctx.fillStyle = "hsl(0,0%," + (100 - (asteroids[i][5]*25/(explosionPower+1))) + "%)"
+            
+            ctx.fill();
+          }
+        }
+        drawAsteroids();
+
+        function drawProjectiles(){
+          ctx.globalAlpha = 1
+          for(let i = 0; i < projectiles.length; i++){
+            ctx.beginPath();
+            ctx.arc(projectiles[i][0], projectiles[i][1], 1, 0, Math.PI * 2, true);
+            ctx.fillStyle = "#ffe552"
+            ctx.fill();
+          }
+        }
+
+        //Advances timestep every millisecond
+        function advanceTime(){
+          if(running){
+            ctx.setLineDash([]);
+            ctx.globalAlpha = 1
+            changeFuel();
+            collisions();
+            spinShip();
+            // planetDamage();
+
+            //runs GRAVITY() on each planet
+            for(let i = 0; i < planets.length; i++){
+              const[changeX, changeY, changeVx, changeVy] = GRAVITY(planets[i][0], planets[i][1], planets[i][2], planets[i][3], planets[i][4], 0, 0);
+              updates[i][0] = changeX
+              updates[i][1] = changeY
+              updates[i][2] = changeVx
+              updates[i][3] = changeVy
+            }
+
+            //updates the position and velocity of each planet
+            for(let j = 0; j < planets.length; j++){
+              planets[j][0] += updates[j][0]
+              planets[j][1] += updates[j][1]
+              planets[j][2] += updates[j][2]
+              planets[j][3] += updates[j][3]
+            }
+
+            // runs GRAVITY() on each asteroid
+            for(let i = 0; i < asteroids.length; i++){
+              const[changeX, changeY, changeVx, changeVy] = GRAVITY(asteroids[i][0], asteroids[i][1], asteroids[i][2], asteroids[i][3], asteroids[i][4], 0, 0);
+              asteroids[i][0] += changeX
+              asteroids[i][1] += changeY
+              asteroids[i][2] += changeVx
+              asteroids[i][3] += changeVy
+            }
+
+            // runs GRAVITY() on each projectile
+            for(let i = 0; i < projectiles.length; i++){
+              const[changeX, changeY, changeVx, changeVy] = GRAVITY(projectiles[i][0], projectiles[i][1], projectiles[i][2], projectiles[i][3], 1000, 0, 0);
+              projectiles[i][0] += changeX
+              projectiles[i][1] += changeY
+              projectiles[i][2] += changeVx
+              projectiles[i][3] += changeVy
+            }
+
+            //runs GRAVITY() on ship
+            if(justDied == 0){
+              const[changeXship, changeYship, changeVxShip, changeVyShip] = GRAVITY(ship[0], ship[1], ship[2], ship[3], ship[4], xThruster, yThruster);
+              ship[0] += changeXship
+              ship[1] += changeYship
+              ship[2] += changeVxShip
+              ship[3] += changeVyShip
+            }
+
+            if((Math.floor((score + ((t/500) * (planetsOrbited + 1)))/10)) > (Math.floor(score/10))){
+
+              newAsteroid();
+            }
+            if(HP <= 0){
+              HP = 0
+              alert(shipName + " was destroyed! Score: " + Math.round(score));
+              reset();
+            }
+            if(justDied == 0){
+              score += (t/500) * scoreMod
+              if(inOrbit){
+                score += t/1000 * scoreMod
+              }
+            }
+
+            timeElapsed/3600>>0
+            timeElapsed += t
+          }
+        }
+        setInterval(advanceTime,1);
+
+        //Renders scene every 10 milliseconds
+        function draw(){
+          if(running && gameMode == 0 && justDied == 0){
+            ctx.clearRect(0,0,1420,800);
+            ctx.setLineDash([]);
+            if(alreadyExploded){
+              drawPlanets();
+            }
+            orbit();
+            explode();
+            drawAsteroids();
+            drawProjectiles();
+            drawShip();
+            if(!alreadyExploded){
+              drawPlanets();
+            }
+            fuelBar();
+            HPbar();
+            readOuts();
+          }else if(!running){
+            ctx.clearRect(1180,30,150,40);
+            ctx.font = "15px Courier New";
+            ctx.fillStyle = "#ffffff"
+            ctx.fillText("Paused", 1190, 40);
+          }else if(running && gameMode == 2){
+            t = 60
+            tMod = 4
+            score = 0
+            ctx.clearRect(0,0,1420,800);
+            ctx.setLineDash([]);
+            if(alreadyExploded){
+              drawPlanets();
+            }
+            explode();
+            drawAsteroids();
+            if(!alreadyExploded){
+              drawPlanets();
+            }
+          }else if(justDied > 0){
+            canvas.style.backgroundColor = "#360600"
+            t = 3
+            ctx.clearRect(0,0,1420,800);
+            ctx.setLineDash([]);
+            if(alreadyExploded){
+              drawPlanets();
+            }
+            explode();
+            readOuts();
+            drawAsteroids();
+            drawProjectiles();
+            if(!alreadyExploded){
+              drawPlanets();
+            }
+            if(justDied > 400){
+              alert(deathMessage);
+              reset();
+            }else{
+              justDied ++
+            }
+          }
+        }
+        setInterval(draw,10);
+    	</script>
+    </body>
+  </html>
